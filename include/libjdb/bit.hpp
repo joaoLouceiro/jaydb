@@ -27,10 +27,16 @@ template <class From> byte64 to_byte64(From src) {
     return ret;
 }
 
+/**
+ * Gets the raw bytes of an object @src
+ */
 template <class From> std::byte *as_bytes(From &from) {
     return reinterpret_cast<std::byte *>(&from);
 }
 
+/**
+ * Gets the raw bytes of a (const) object @src
+ */
 template <class From> const std::byte *as_bytes(const From &from) {
     return reinterpret_cast<const std::byte *>(&from);
 }

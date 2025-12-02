@@ -1,14 +1,17 @@
 #ifndef JDB_PROCESS_HPP
 #define JDB_PROCESS_HPP
 
-#include "libjdb/types.hpp"
 #include <cstdint>
 #include <filesystem>
+#include <libjdb/breakpoint_site.hpp>
 #include <libjdb/registers.hpp>
+#include <libjdb/stoppoint_collection.hpp>
+#include <libjdb/types.hpp>
 #include <memory>
 #include <optional>
 #include <sys/types.h>
 #include <sys/user.h>
+#include <vector>
 
 namespace jdb {
 
@@ -55,9 +58,16 @@ class process {
         return virt_addr{get_registers().read_by_id_as<std::uint64_t>(register_id::rip)};
     }
 
+    breakpoint_site &create_breakpoint_site(virt_addr address);
+
+    stoppoint_collection<breakpoint_site> &breakpoint_sites() { return breakpoint_sites_; }
+    const stoppoint_collection<breakpoint_site> &breakpoint_sites() const {
+        return breakpoint_sites_;
+    }
+
   private:
-    // private constructor, so that the client can only create a member of the class by calling the
-    // launch and attach public functions
+    // private constructor, so that the client can only create a member of the class by calling
+    // the launch and attach public functions
     process(pid_t pid, bool terminate_on_end, bool is_attached)
         : pid_(pid), terminate_on_end_(terminate_on_end), is_attached_(is_attached),
           registers_(new registers(*this)) {}
@@ -69,6 +79,7 @@ class process {
     process_state state_ = process_state::stopped;
     bool is_attached_;
     std::unique_ptr<registers> registers_;
+    stoppoint_collection<breakpoint_site> breakpoint_sites_;
 };
 
 } // namespace jdb

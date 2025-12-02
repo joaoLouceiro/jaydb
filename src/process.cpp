@@ -1,16 +1,17 @@
-#include "libjdb/bit.hpp"
 #include <cerrno>
 #include <csignal>
 #include <cstddef>
 #include <cstdint>
 #include <cstdlib>
 #include <cstring>
-#include <iostream>
 #include <libjdb/bit.hpp>
+#include <libjdb/breakpoint_site.hpp>
 #include <libjdb/error.hpp>
 #include <libjdb/pipe.hpp>
 #include <libjdb/process.hpp>
 #include <libjdb/register_info.hpp>
+#include <libjdb/stoppoint_collection.hpp>
+#include <libjdb/types.hpp>
 #include <memory>
 #include <optional>
 #include <string>
@@ -27,6 +28,14 @@ void exit_with_perror(jdb::pipe &channel, std::string const &prefix) {
     exit(-1);
 }
 } // namespace
+
+jdb::breakpoint_site &jdb::process::create_breakpoint_site(jdb::virt_addr address) {
+    if (breakpoint_sites_.contains_address(address)) {
+        error::send("Breakpoint site already created at address " + std::to_string(address.addr()));
+    }
+    return breakpoint_sites_.push(
+        std::unique_ptr<breakpoint_site>(new breakpoint_site(*this, address)));
+}
 
 std::unique_ptr<jdb::process> jdb::process::launch(std::filesystem::path path, bool debug,
                                                    std::optional<int> stdout_replacement) {

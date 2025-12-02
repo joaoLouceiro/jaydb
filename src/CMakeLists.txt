@@ -1,5 +1,5 @@
 # Create a target called libjdb with a single source file, libjdb.cpp
-add_library(libjdb process.cpp pipe.cpp registers.cpp)
+add_library(libjdb process.cpp pipe.cpp registers.cpp breakpoint_site.cpp)
 # create a namespaced library target, which can result in more understandable errors
 add_library(jdb::libjdb ALIAS libjdb)
 

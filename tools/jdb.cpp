@@ -2,6 +2,7 @@
 #include "libjdb/register_info.hpp"
 #include "libjdb/registers.hpp"
 #include <algorithm>
+#include <cstdint>
 #include <cstdio>
 #include <cstdlib>
 #include <cstring>
