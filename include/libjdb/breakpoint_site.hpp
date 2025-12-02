@@ -21,7 +21,7 @@ class breakpoint_site {
     void disable();
 
     bool is_enabled() const { return is_enabled_; }
-    virt_addr adress() const { return address_; }
+    virt_addr address() const { return address_; }
 
     bool at_address(virt_addr addr) const { return address_ == addr; }
     bool in_range(virt_addr low, virt_addr high) const {
