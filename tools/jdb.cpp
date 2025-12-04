@@ -1,6 +1,7 @@
 #include "libjdb/parse.hpp"
 #include "libjdb/register_info.hpp"
 #include "libjdb/registers.hpp"
+#include "libjdb/types.hpp"
 #include <algorithm>
 #include <cstdint>
 #include <cstdio>
@@ -67,6 +68,24 @@ void handle_breakpoint_command(jdb::process &process, const std::vector<std::str
             });
         }
         return;
+    }
+
+    // Add method for setting a breakpoint,
+    // command = 'set'
+    // args[2] = address. Make use of jdb::parse::to_integral
+
+    if (args.size() < 3) {
+        print_help({"help", "breakpoint"});
+        return;
+    }
+
+    if (is_prefix(args[1], "set")) {
+        auto address = jdb::to_integral<uint64_t>(args[2], 16);
+        if (!address) {
+            std::cerr << "Invalid hexadecimal address\n";
+        }
+
+        process.create_breakpoint_site(jdb::virt_addr{*address}).enable();
     }
 }
 
