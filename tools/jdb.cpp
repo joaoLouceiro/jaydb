@@ -1,7 +1,3 @@
-#include "libjdb/parse.hpp"
-#include "libjdb/register_info.hpp"
-#include "libjdb/registers.hpp"
-#include "libjdb/types.hpp"
 #include <algorithm>
 #include <cstdint>
 #include <cstdio>
@@ -12,8 +8,13 @@
 #include <fmt/format.h>
 #include <fmt/ranges.h>
 #include <iostream>
+#include <libjdb/breakpoint_site.hpp>
 #include <libjdb/error.hpp>
+#include <libjdb/parse.hpp>
 #include <libjdb/process.hpp>
+#include <libjdb/register_info.hpp>
+#include <libjdb/registers.hpp>
+#include <libjdb/types.hpp>
 #include <memory>
 #include <sstream>
 #include <string>
@@ -82,10 +83,27 @@ void handle_breakpoint_command(jdb::process &process, const std::vector<std::str
     if (is_prefix(args[1], "set")) {
         auto address = jdb::to_integral<uint64_t>(args[2], 16);
         if (!address) {
-            std::cerr << "Invalid hexadecimal address\n";
+            fmt::print(stderr, "Breakpoint command expects address in"
+                               "hexadecimal, prefixed with '0x'\n");
+            return;
         }
 
         process.create_breakpoint_site(jdb::virt_addr{*address}).enable();
+    }
+
+    // Create methods for enabling, disabling and deleting a breakpoint_site, based on ID.
+    auto id = jdb::to_integral<jdb::breakpoint_site::id_type>(args[2]);
+    if (!id) {
+        std::cerr << "Command expects breakpoint ID";
+        return;
+    }
+
+    if (is_prefix(args[2], "enable")) {
+        process.breakpoint_sites().get_by_id(*id).enable();
+    } else if (is_prefix(args[2], "disable")) {
+        process.breakpoint_sites().get_by_id(*id).disable();
+    } else if (is_prefix(args[2], "remove")) {
+        process.breakpoint_sites().remove_by_id(*id);
     }
 }
 
@@ -93,10 +111,9 @@ void handle_register_read(jdb::process &process, const std::vector<std::string> 
     auto format = [](auto t) {
         /*
          * If the register is of type double, return the value of it as is
-         * Else, if it is of any integral type (char, int, long, short), pad the string with two 0's
-         * for every byte, plus two chars for the leading 0x.
-         * If the register is a vector, format the string as [0xtt, 0xtt...] (04 makes it 4 chars
-         * wide).
+         * Else, if it is of any integral type (char, int, long, short), pad the string with two
+         * 0's for every byte, plus two chars for the leading 0x. If the register is a vector,
+         * format the string as [0xtt, 0xtt...] (04 makes it 4 chars wide).
          */
         if constexpr (std::is_floating_point_v<decltype(t)>) {
             // return value to lambda function
