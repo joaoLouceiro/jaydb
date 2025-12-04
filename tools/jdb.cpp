@@ -50,6 +50,26 @@ write <register> <value>
     }
 }
 
+void handle_breakpoint_command(jdb::process &process, const std::vector<std::string> &args) {
+    if (args.size() < 2) {
+        print_help({"help", "breakpoint"});
+        return;
+    }
+
+    if (is_prefix(args[1], "list")) {
+        if (process.breakpoint_sites().empty()) {
+            fmt::print("No breakpoints set\n");
+        } else {
+            fmt::print("Current breakpoints:\n");
+            process.breakpoint_sites().for_each([](auto &site) {
+                fmt::print("{}: address = {:#x}, {}\n", site.id(), site.address().addr(),
+                           site.is_enabled() ? "enabled" : "disabled");
+            });
+        }
+        return;
+    }
+}
+
 void handle_register_read(jdb::process &process, const std::vector<std::string> &args) {
     auto format = [](auto t) {
         /*
@@ -201,6 +221,8 @@ void handle_command(std::unique_ptr<jdb::process> &process, std::string_view lin
         handle_register_command(*process, args);
     } else if (is_prefix(command, "help")) {
         print_help(args);
+    } else if (is_prefix(command, "breakpoint")) {
+        handle_breakpoint_command(*process, args);
     } else {
         std::cerr << "Unknown command\n";
     }
