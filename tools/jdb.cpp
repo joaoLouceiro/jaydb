@@ -37,8 +37,10 @@ bool is_prefix(std::string_view str, std::string_view of) {
 void print_help(const std::vector<std::string> &args) {
     if (args.size() == 1) {
         std::cerr << R"(Available commands:
+breakpoint  - Commands for operating on breakpoints
 continue    - Resume the process
 register    - Commands for operating on register
+step        - Step over a single instruction
 )";
     } else if (is_prefix(args[1], "register")) {
         std::cerr << R"(Available commands:
@@ -46,6 +48,14 @@ read
 read <register>
 read all
 write <register> <value>
+)";
+    } else if (is_prefix(args[1], "breakpoint")) {
+        std::cerr << R"(Available commands:
+list
+delete <id>
+disable <id>
+enable <id>
+set <address>
 )";
     } else {
         std::cerr << "No help available on that\n";
@@ -89,12 +99,13 @@ void handle_breakpoint_command(jdb::process &process, const std::vector<std::str
         }
 
         process.create_breakpoint_site(jdb::virt_addr{*address}).enable();
+        return;
     }
 
     // Create methods for enabling, disabling and deleting a breakpoint_site, based on ID.
     auto id = jdb::to_integral<jdb::breakpoint_site::id_type>(args[2]);
     if (!id) {
-        std::cerr << "Command expects breakpoint ID";
+        std::cerr << "Command expects breakpoint ID\n";
         return;
     }
 
@@ -215,7 +226,9 @@ std::unique_ptr<jdb::process> attach(int argc, const char **argv) {
         return jdb::process::attach(pid);
     } else {
         const char *program_path = argv[1];
-        return jdb::process::launch(program_path);
+        auto proc = jdb::process::launch(program_path);
+        fmt::print("Launched process with PID {}\n", proc->pid());
+        return proc;
     }
 }
 
@@ -259,6 +272,9 @@ void handle_command(std::unique_ptr<jdb::process> &process, std::string_view lin
         print_help(args);
     } else if (is_prefix(command, "breakpoint")) {
         handle_breakpoint_command(*process, args);
+    } else if (is_prefix(command, "step")) {
+        auto reason = process->step_instruction();
+        print_stop_reason(*process, reason);
     } else {
         std::cerr << "Unknown command\n";
     }

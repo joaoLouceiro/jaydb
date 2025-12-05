@@ -15,6 +15,7 @@
 #include <memory>
 #include <optional>
 #include <string>
+#include <sys/personality.h>
 #include <sys/ptrace.h>
 #include <sys/types.h>
 #include <sys/user.h>
@@ -46,6 +47,7 @@ std::unique_ptr<jdb::process> jdb::process::launch(std::filesystem::path path, b
         error::send_errno("fork failed");
     }
     if (pid == 0) {
+        personality(ADDR_NO_RANDOMIZE);
         // Because the child process will not be reading from the pipe, we can close it immediately
         channel.close_read();
         if (stdout_replacement) {
@@ -122,10 +124,47 @@ jdb::process::~process() {
 
 // Wrapper for PTRACE_CONT
 void jdb::process::resume() {
+    auto pc = get_pc();
+    // Because we manually altered the child's instruction to include a call to int3, when we want
+    // to continue the execution, we need to recover that data, otherwise the CPU doesn't have a
+    // valid instruction, throwing a SIGILL.
+    if (breakpoint_sites_.enabled_stoppoint_at_address(pc)) {
+        auto &bp = breakpoint_sites_.get_by_address(pc);
+        bp.disable();
+        if (ptrace(PTRACE_SINGLESTEP, pid_, nullptr, nullptr) < 0) {
+            error::send_errno("Failed to single step");
+        }
+        int wait_status;
+        if (waitpid(pid_, &wait_status, 0) < 0) {
+            error::send_errno("waitpid failed");
+        }
+        bp.enable();
+    }
+
     if (ptrace(PTRACE_CONT, pid_, nullptr, nullptr) < 0) {
         error::send_errno("Could not resume");
     }
     state_ = process_state::running;
+}
+
+jdb::stop_reason jdb::process::step_instruction() {
+    std::optional<breakpoint_site *> to_reenable;
+    auto pc = get_pc();
+    if (breakpoint_sites_.enabled_stoppoint_at_address(pc)) {
+        auto &bp = breakpoint_sites_.get_by_address(pc);
+        bp.disable();
+        to_reenable = &bp;
+    }
+
+    if (ptrace(PTRACE_SINGLESTEP, pid_, nullptr, nullptr) < 0) {
+        error::send_errno("Could not single step");
+    }
+    auto reason = wait_on_signal();
+
+    if (to_reenable) {
+        to_reenable.value()->enable();
+    }
+    return reason;
 }
 
 jdb::stop_reason::stop_reason(int wait_status) {
@@ -153,6 +192,18 @@ jdb::stop_reason jdb::process::wait_on_signal() {
 
     if (is_attached_ && state_ == process_state::stopped) {
         read_all_registers();
+        // If the process stopped due to a SIGTRAP, move the program counter back by 1 step, so it
+        // will point to the breakpoint that signaled the program to stop.
+        // This fixes SIGILL (illegal sign) being passed when we execute the block of data we
+        // altered in order to add a breakpoint to the child process, because disabling the
+        // breakpoint restores the data from the original instruction
+        // @see jdb::breakpoint_site::enable()
+        // @see jdb::breakpoint_site::disable()
+        // @see jdb::process::resume()
+        auto instr_begin = get_pc() - 1;
+        if (reason.info == SIGTRAP && breakpoint_sites_.enabled_stoppoint_at_address(instr_begin)) {
+            set_pc(instr_begin);
+        }
     }
 
     return reason;
