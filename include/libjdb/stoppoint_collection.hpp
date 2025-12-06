@@ -122,14 +122,14 @@ const Stoppoint &stoppoint_collection<Stoppoint>::get_by_address(virt_addr addre
 template <class Stoppoint>
 void stoppoint_collection<Stoppoint>::remove_by_id(typename Stoppoint::id_type id) {
     auto it = find_by_id(id);
-    return (**it).disable();
+    (**it).disable();
     stoppoints_.erase(it);
 }
 
 template <class Stoppoint>
 void stoppoint_collection<Stoppoint>::remove_by_address(virt_addr address) {
     auto it = find_by_address(address);
-    return (**it).disable();
+    (**it).disable();
     stoppoints_.erase(it);
 }
 
