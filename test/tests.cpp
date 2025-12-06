@@ -1,13 +1,19 @@
-#include "libjdb/types.hpp"
 #include <catch2/catch_test_macros.hpp>
+#include <csignal>
 #include <cstdint>
+#include <cstdio>
+#include <cstdlib>
+#include <elf.h>
 #include <filesystem>
+#include <fmt/base.h>
 #include <fstream>
 #include <libjdb/bit.hpp>
 #include <libjdb/error.hpp>
 #include <libjdb/pipe.hpp>
 #include <libjdb/process.hpp>
 #include <libjdb/register_info.hpp>
+#include <libjdb/types.hpp>
+#include <regex>
 #include <signal.h>
 #include <string>
 #include <sys/types.h>
@@ -19,6 +25,63 @@ bool process_exists(pid_t pid) {
     auto ret = kill(pid, 0);
     return ret != -1 && errno != ESRCH;
 }
+
+namespace {
+std::int64_t get_section_load_bias(std::filesystem::path path, Elf64_Addr file_address) {
+    auto command = std::string("readelf -WS ") + path.string();
+    auto pipe = popen(command.c_str(), "r");
+
+    std::regex text_regex(R"(PROGBITS\s+(\w+)\s+(\w+)\s+(\w+))");
+    char *line = nullptr;
+    std::size_t len = 0;
+    while (getline(&line, &len, pipe) != -1) {
+        std::cmatch groups;
+        if (std::regex_search(line, groups, text_regex)) {
+            auto address = std::stol(groups[1], nullptr, 16);
+            auto offset = std::stol(groups[2], nullptr, 16);
+            auto size = std::stol(groups[3], nullptr, 16);
+            if (address <= file_address && file_address < (address + size)) {
+                free(line);
+                pclose(pipe);
+                return address - offset;
+            }
+        }
+        free(line);
+        line = nullptr;
+    }
+    pclose(pipe);
+    jdb::error::send("Could not find dection load bias");
+}
+
+std::int64_t get_entry_point_offset(std::filesystem::path path) {
+    std::ifstream elf_file(path);
+
+    Elf64_Ehdr header;
+    elf_file.read(reinterpret_cast<char *>(&header), sizeof(header));
+
+    auto entry_file_address = header.e_entry;
+    auto load_bias = get_section_load_bias(path, entry_file_address);
+    return entry_file_address - load_bias;
+}
+
+virt_addr get_load_address(pid_t pid, std::int64_t offset) {
+    std::ifstream maps("/proc/" + std::to_string(pid) + "/maps");
+    std::regex map_regex(R"((\w+)-\w+ ..(.). (\w+))");
+
+    std::string data;
+    while (std::getline(maps, data)) {
+        std::smatch groups;
+        std::regex_search(data, groups, map_regex);
+
+        if (groups[2] == 'x') {
+            auto low_range = std::stol(groups[1], nullptr, 16);
+            auto file_offset = std::stol(groups[3], nullptr, 16);
+            return virt_addr(offset - file_offset + low_range);
+        }
+    }
+    jdb::error::send("Could not find load address");
+}
+} // namespace
 
 char get_process_status(pid_t pid) {
     std::ifstream stat("/proc/" + std::to_string(pid) + "/stat");
@@ -241,4 +304,45 @@ TEST_CASE("Can iterate breakpoint sites", "[breakpoint]") {
 
     cproc->breakpoint_sites().for_each(
         [addr = 42](auto &site) mutable { REQUIRE(site.address().addr() == addr++); });
+}
+
+TEST_CASE("Breakpoint on address works", "[breakpoint]") {
+    bool close_on_exec = false;
+    jdb::pipe channel(close_on_exec);
+
+    auto proc = process::launch("test/targets/hello_jdb", true, channel.get_write());
+    channel.close_write();
+
+    auto offset = get_entry_point_offset("test/targets/hello_jdb");
+    auto load_address = get_load_address(proc->pid(), offset);
+
+    proc->create_breakpoint_site(load_address).enable();
+    proc->resume();
+    auto reason = proc->wait_on_signal();
+
+    REQUIRE(reason.reason == process_state::stopped);
+    REQUIRE(reason.info == SIGTRAP);
+    REQUIRE(proc->get_pc() == load_address);
+
+    proc->resume();
+    reason = proc->wait_on_signal();
+
+    REQUIRE(reason.reason == process_state::exited);
+    REQUIRE(reason.info == 0);
+
+    auto data = channel.read();
+    REQUIRE(to_string_view(data) == "Hello, jdb!\n");
+}
+
+TEST_CASE("Can remove breakpoint sites", "[breakpoint]") {
+    auto proc = process::launch("test/targets/run_endlessly");
+
+    auto &site = proc->create_breakpoint_site(virt_addr{42});
+    proc->create_breakpoint_site(virt_addr{43});
+    REQUIRE(proc->breakpoint_sites().size() == 2);
+
+    proc->breakpoint_sites().remove_by_id(site.id());
+    proc->breakpoint_sites().remove_by_address(virt_addr{43});
+    // std::cout << proc->breakpoint_sites().size();
+    REQUIRE(proc->breakpoint_sites().empty());
 }
