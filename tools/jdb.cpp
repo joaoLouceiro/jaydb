@@ -1,6 +1,3 @@
-#include "libjdb/parse.hpp"
-#include "libjdb/register_info.hpp"
-#include "libjdb/registers.hpp"
 #include <algorithm>
 #include <cstdint>
 #include <cstdio>
@@ -11,8 +8,13 @@
 #include <fmt/format.h>
 #include <fmt/ranges.h>
 #include <iostream>
+#include <libjdb/breakpoint_site.hpp>
 #include <libjdb/error.hpp>
+#include <libjdb/parse.hpp>
 #include <libjdb/process.hpp>
+#include <libjdb/register_info.hpp>
+#include <libjdb/registers.hpp>
+#include <libjdb/types.hpp>
 #include <memory>
 #include <sstream>
 #include <string>
@@ -35,8 +37,10 @@ bool is_prefix(std::string_view str, std::string_view of) {
 void print_help(const std::vector<std::string> &args) {
     if (args.size() == 1) {
         std::cerr << R"(Available commands:
+breakpoint  - Commands for operating on breakpoints
 continue    - Resume the process
 register    - Commands for operating on register
+step        - Step over a single instruction
 )";
     } else if (is_prefix(args[1], "register")) {
         std::cerr << R"(Available commands:
@@ -45,8 +49,72 @@ read <register>
 read all
 write <register> <value>
 )";
+    } else if (is_prefix(args[1], "breakpoint")) {
+        std::cerr << R"(Available commands:
+list
+delete <id>
+disable <id>
+enable <id>
+set <address>
+)";
     } else {
         std::cerr << "No help available on that\n";
+    }
+}
+
+void handle_breakpoint_command(jdb::process &process, const std::vector<std::string> &args) {
+    if (args.size() < 2) {
+        print_help({"help", "breakpoint"});
+        return;
+    }
+
+    if (is_prefix(args[1], "list")) {
+        if (process.breakpoint_sites().empty()) {
+            fmt::print("No breakpoints set\n");
+        } else {
+            fmt::print("Current breakpoints:\n");
+            process.breakpoint_sites().for_each([](auto &site) {
+                fmt::print("{}: address = {:#x}, {}\n", site.id(), site.address().addr(),
+                           site.is_enabled() ? "enabled" : "disabled");
+            });
+        }
+        return;
+    }
+
+    // Add method for setting a breakpoint,
+    // command = 'set'
+    // args[2] = address. Make use of jdb::parse::to_integral
+
+    if (args.size() < 3) {
+        print_help({"help", "breakpoint"});
+        return;
+    }
+
+    if (is_prefix(args[1], "set")) {
+        auto address = jdb::to_integral<uint64_t>(args[2], 16);
+        if (!address) {
+            fmt::print(stderr, "Breakpoint command expects address in"
+                               "hexadecimal, prefixed with '0x'\n");
+            return;
+        }
+
+        process.create_breakpoint_site(jdb::virt_addr{*address}).enable();
+        return;
+    }
+
+    // Create methods for enabling, disabling and deleting a breakpoint_site, based on ID.
+    auto id = jdb::to_integral<jdb::breakpoint_site::id_type>(args[2]);
+    if (!id) {
+        std::cerr << "Command expects breakpoint ID\n";
+        return;
+    }
+
+    if (is_prefix(args[2], "enable")) {
+        process.breakpoint_sites().get_by_id(*id).enable();
+    } else if (is_prefix(args[2], "disable")) {
+        process.breakpoint_sites().get_by_id(*id).disable();
+    } else if (is_prefix(args[2], "remove")) {
+        process.breakpoint_sites().remove_by_id(*id);
     }
 }
 
@@ -54,10 +122,9 @@ void handle_register_read(jdb::process &process, const std::vector<std::string> 
     auto format = [](auto t) {
         /*
          * If the register is of type double, return the value of it as is
-         * Else, if it is of any integral type (char, int, long, short), pad the string with two 0's
-         * for every byte, plus two chars for the leading 0x.
-         * If the register is a vector, format the string as [0xtt, 0xtt...] (04 makes it 4 chars
-         * wide).
+         * Else, if it is of any integral type (char, int, long, short), pad the string with two
+         * 0's for every byte, plus two chars for the leading 0x. If the register is a vector,
+         * format the string as [0xtt, 0xtt...] (04 makes it 4 chars wide).
          */
         if constexpr (std::is_floating_point_v<decltype(t)>) {
             // return value to lambda function
@@ -159,7 +226,9 @@ std::unique_ptr<jdb::process> attach(int argc, const char **argv) {
         return jdb::process::attach(pid);
     } else {
         const char *program_path = argv[1];
-        return jdb::process::launch(program_path);
+        auto proc = jdb::process::launch(program_path);
+        fmt::print("Launched process with PID {}\n", proc->pid());
+        return proc;
     }
 }
 
@@ -201,6 +270,11 @@ void handle_command(std::unique_ptr<jdb::process> &process, std::string_view lin
         handle_register_command(*process, args);
     } else if (is_prefix(command, "help")) {
         print_help(args);
+    } else if (is_prefix(command, "breakpoint")) {
+        handle_breakpoint_command(*process, args);
+    } else if (is_prefix(command, "step")) {
+        auto reason = process->step_instruction();
+        print_stop_reason(*process, reason);
     } else {
         std::cerr << "Unknown command\n";
     }

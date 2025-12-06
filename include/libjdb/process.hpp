@@ -4,6 +4,7 @@
 #include <cstdint>
 #include <filesystem>
 #include <libjdb/breakpoint_site.hpp>
+#include <libjdb/register_info.hpp>
 #include <libjdb/registers.hpp>
 #include <libjdb/stoppoint_collection.hpp>
 #include <libjdb/types.hpp>
@@ -11,7 +12,6 @@
 #include <optional>
 #include <sys/types.h>
 #include <sys/user.h>
-#include <vector>
 
 namespace jdb {
 
@@ -57,6 +57,11 @@ class process {
     virt_addr get_pc() const {
         return virt_addr{get_registers().read_by_id_as<std::uint64_t>(register_id::rip)};
     }
+    void set_pc(virt_addr address) {
+        get_registers().write_by_id(register_id::rip, address.addr());
+    }
+
+    jdb::stop_reason step_instruction();
 
     breakpoint_site &create_breakpoint_site(virt_addr address);
 
