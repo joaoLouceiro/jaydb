@@ -1,17 +1,17 @@
-#ifndef JDB_REGISTER_INFO_HPP
-#define JDB_REGISTER_INFO_HPP
+#ifndef JAYDB_REGISTER_INFO_HPP
+#define JAYDB_REGISTER_INFO_HPP
 
 #include <algorithm>
 #include <cstddef>
 #include <cstdint>
-#include <libjdb/error.hpp>
+#include <libjaydb/error.hpp>
 #include <string_view>
 #include <sys/user.h>
 
-namespace jdb {
+namespace jaydb {
 enum class register_id {
 #define DEFINE_REGISTER(name, dwarf_id, size, offset, type, format) name
-#include <libjdb/detail/registers.inc>
+#include <libjaydb/detail/registers.inc>
 #undef DEFINE_REGISTER
 };
 
@@ -41,7 +41,7 @@ struct register_info {
 inline constexpr const register_info g_register_infos[] = {
 #define DEFINE_REGISTER(name, dwarf_id, size, offset, type, format)                                \
     {register_id::name, #name, dwarf_id, size, offset, type, format}
-#include <libjdb/detail/registers.inc>
+#include <libjaydb/detail/registers.inc>
 #undef DEFINE_REGISTER
 };
 
@@ -64,5 +64,5 @@ inline const register_info &register_info_by_name(std::string_view name) {
 inline const register_info &register_info_by_dwarf(std::int32_t dwarf_id) {
     return register_info_by([dwarf_id](auto &i) { return i.dwarf_id == dwarf_id; });
 }
-} // namespace jdb
-#endif // !JDB_REGISTER_INFO_HPP
+} // namespace jaydb
+#endif // !JAYDB_REGISTER_INFO_HPP

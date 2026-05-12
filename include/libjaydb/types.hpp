@@ -1,11 +1,11 @@
-#ifndef JDB_TYPES_HPP
-#define JDB_TYPES_HPP
+#ifndef JAYDB_TYPES_HPP
+#define JAYDB_TYPES_HPP
 
 #include <array>
 #include <cstddef>
 #include <cstdint>
 
-namespace jdb {
+namespace jaydb {
 using byte64 = std::array<std::byte, 8>;
 using byte128 = std::array<std::byte, 16>;
 class virt_addr {
@@ -35,6 +35,6 @@ class virt_addr {
   private:
     std::uint64_t addr_ = 0;
 };
-} // namespace jdb
+} // namespace jaydb
 
-#endif // !JDB_TYPES_HPP
+#endif // !JAYDB_TYPES_HPP

@@ -1,11 +1,11 @@
-#ifndef JDB_BREAKPOINT_SITE_HPP
-#define JDB_BREAKPOINT_SITE_HPP
+#ifndef JAYDB_BREAKPOINT_SITE_HPP
+#define JAYDB_BREAKPOINT_SITE_HPP
 
 #include <cstddef>
 #include <cstdint>
-#include <libjdb/types.hpp>
+#include <libjaydb/types.hpp>
 
-namespace jdb {
+namespace jaydb {
 class process;
 
 class breakpoint_site {
@@ -39,6 +39,6 @@ class breakpoint_site {
     std::byte saved_data_;
 };
 
-} // namespace jdb
+} // namespace jaydb
 
-#endif // !JDB_BREAKPOINT_SITE_HPP
+#endif // !JAYDB_BREAKPOINT_SITE_HPP

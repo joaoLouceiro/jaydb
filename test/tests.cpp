@@ -7,18 +7,18 @@
 #include <filesystem>
 #include <fmt/base.h>
 #include <fstream>
-#include <libjdb/bit.hpp>
-#include <libjdb/error.hpp>
-#include <libjdb/pipe.hpp>
-#include <libjdb/process.hpp>
-#include <libjdb/register_info.hpp>
-#include <libjdb/types.hpp>
+#include <libjaydb/bit.hpp>
+#include <libjaydb/error.hpp>
+#include <libjaydb/pipe.hpp>
+#include <libjaydb/process.hpp>
+#include <libjaydb/register_info.hpp>
+#include <libjaydb/types.hpp>
 #include <regex>
 #include <signal.h>
 #include <string>
 #include <sys/types.h>
 
-using namespace jdb;
+using namespace jaydb;
 
 namespace {
 bool process_exists(pid_t pid) {
@@ -50,7 +50,7 @@ std::int64_t get_section_load_bias(std::filesystem::path path, Elf64_Addr file_a
         line = nullptr;
     }
     pclose(pipe);
-    jdb::error::send("Could not find dection load bias");
+    jaydb::error::send("Could not find dection load bias");
 }
 
 std::int64_t get_entry_point_offset(std::filesystem::path path) {
@@ -79,7 +79,7 @@ virt_addr get_load_address(pid_t pid, std::int64_t offset) {
             return virt_addr(offset - file_offset + low_range);
         }
     }
-    jdb::error::send("Could not find load address");
+    jaydb::error::send("Could not find load address");
 }
 } // namespace
 
@@ -145,7 +145,7 @@ TEST_CASE("Write register works", "[register]") {
     // Our goal is to check, from within a running process, that we can affect the value of a
     // register.
     bool close_on_exec = false;
-    jdb::pipe channel(close_on_exec);
+    jaydb::pipe channel(close_on_exec);
 
     auto proc = process::launch("test/targets/reg_write", true, channel.get_write());
     channel.close_write();
@@ -308,12 +308,12 @@ TEST_CASE("Can iterate breakpoint sites", "[breakpoint]") {
 
 TEST_CASE("Breakpoint on address works", "[breakpoint]") {
     bool close_on_exec = false;
-    jdb::pipe channel(close_on_exec);
+    jaydb::pipe channel(close_on_exec);
 
-    auto proc = process::launch("test/targets/hello_jdb", true, channel.get_write());
+    auto proc = process::launch("test/targets/hello_jaydb", true, channel.get_write());
     channel.close_write();
 
-    auto offset = get_entry_point_offset("test/targets/hello_jdb");
+    auto offset = get_entry_point_offset("test/targets/hello_jaydb");
     auto load_address = get_load_address(proc->pid(), offset);
 
     proc->create_breakpoint_site(load_address).enable();
@@ -331,7 +331,7 @@ TEST_CASE("Breakpoint on address works", "[breakpoint]") {
     REQUIRE(reason.info == 0);
 
     auto data = channel.read();
-    REQUIRE(to_string_view(data) == "Hello, jdb!\n");
+    REQUIRE(to_string_view(data) == "Hello, jaydb!\n");
 }
 
 TEST_CASE("Can remove breakpoint sites", "[breakpoint]") {

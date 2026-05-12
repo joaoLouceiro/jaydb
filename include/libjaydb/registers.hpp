@@ -1,14 +1,14 @@
-#ifndef JDB_REGISTERS_HPP
-#define JDB_REGISTERS_HPP
+#ifndef JAYDB_REGISTERS_HPP
+#define JAYDB_REGISTERS_HPP
 
 #include <cmath>
 #include <cstdint>
-#include <libjdb/register_info.hpp>
-#include <libjdb/types.hpp>
+#include <libjaydb/register_info.hpp>
+#include <libjaydb/types.hpp>
 #include <sys/user.h>
 #include <variant>
 
-namespace jdb {
+namespace jaydb {
 class process;
 class registers {
   public:
@@ -39,5 +39,5 @@ class registers {
     // Pointer to the parent process allows us to ask it for memory reads.
     process *proc_;
 };
-} // namespace jdb
-#endif // !JDB_REGISTERS_HPP
+} // namespace jaydb
+#endif // !JAYDB_REGISTERS_HPP

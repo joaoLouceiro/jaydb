@@ -1,10 +1,10 @@
-#ifndef JDB_PIPE_HPP
-#define JDB_PIPE_HPP
+#ifndef JAYDB_PIPE_HPP
+#define JAYDB_PIPE_HPP
 
 #include <cstddef>
 #include <vector>
 
-namespace jdb {
+namespace jaydb {
 class pipe {
   public:
     explicit pipe(bool close_on_exec);
@@ -27,6 +27,6 @@ class pipe {
     static constexpr unsigned write_fd = 1;
     int fds_[2];
 };
-} // namespace jdb
+} // namespace jaydb
 
-#endif // !JDB_PIPE_HPP
+#endif // !JAYDB_PIPE_HPP

@@ -1,24 +1,24 @@
 #include <cerrno>
 #include <cstddef>
 #include <cstdint>
-#include <libjdb/breakpoint_site.hpp>
-#include <libjdb/process.hpp>
-#include <libjdb/types.hpp>
+#include <libjaydb/breakpoint_site.hpp>
+#include <libjaydb/process.hpp>
+#include <libjaydb/types.hpp>
 #include <sys/ptrace.h>
 
 namespace {
 auto get_next_id() {
-    static jdb::breakpoint_site::id_type id = 0;
+    static jaydb::breakpoint_site::id_type id = 0;
     return ++id;
 }
 } // namespace
 //
-jdb::breakpoint_site::breakpoint_site(process &proc, virt_addr address)
+jaydb::breakpoint_site::breakpoint_site(process &proc, virt_addr address)
     : process_{&proc}, address_{address}, is_enabled_{false}, saved_data_{} {
     id_ = get_next_id();
 }
 
-void jdb::breakpoint_site::enable() {
+void jaydb::breakpoint_site::enable() {
     if (is_enabled_)
         return;
 
@@ -40,7 +40,7 @@ void jdb::breakpoint_site::enable() {
     is_enabled_ = true;
 }
 
-void jdb::breakpoint_site::disable() {
+void jaydb::breakpoint_site::disable() {
     if (!is_enabled_)
         return;
 

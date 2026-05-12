@@ -4,14 +4,14 @@
 #include <cstdint>
 #include <cstdlib>
 #include <cstring>
-#include <libjdb/bit.hpp>
-#include <libjdb/breakpoint_site.hpp>
-#include <libjdb/error.hpp>
-#include <libjdb/pipe.hpp>
-#include <libjdb/process.hpp>
-#include <libjdb/register_info.hpp>
-#include <libjdb/stoppoint_collection.hpp>
-#include <libjdb/types.hpp>
+#include <libjaydb/bit.hpp>
+#include <libjaydb/breakpoint_site.hpp>
+#include <libjaydb/error.hpp>
+#include <libjaydb/pipe.hpp>
+#include <libjaydb/process.hpp>
+#include <libjaydb/register_info.hpp>
+#include <libjaydb/stoppoint_collection.hpp>
+#include <libjaydb/types.hpp>
 #include <memory>
 #include <optional>
 #include <string>
@@ -23,14 +23,14 @@
 #include <unistd.h>
 
 namespace {
-void exit_with_perror(jdb::pipe &channel, std::string const &prefix) {
+void exit_with_perror(jaydb::pipe &channel, std::string const &prefix) {
     auto message = prefix + ": " + std::strerror(errno);
     channel.write(reinterpret_cast<std::byte *>(message.data()), message.size());
     exit(-1);
 }
 } // namespace
 
-jdb::breakpoint_site &jdb::process::create_breakpoint_site(jdb::virt_addr address) {
+jaydb::breakpoint_site &jaydb::process::create_breakpoint_site(jaydb::virt_addr address) {
     if (breakpoint_sites_.contains_address(address)) {
         error::send("Breakpoint site already created at address " + std::to_string(address.addr()));
     }
@@ -38,7 +38,7 @@ jdb::breakpoint_site &jdb::process::create_breakpoint_site(jdb::virt_addr addres
         std::unique_ptr<breakpoint_site>(new breakpoint_site(*this, address)));
 }
 
-std::unique_ptr<jdb::process> jdb::process::launch(std::filesystem::path path, bool debug,
+std::unique_ptr<jaydb::process> jaydb::process::launch(std::filesystem::path path, bool debug,
                                                    std::optional<int> stdout_replacement) {
     pipe channel(true);
     pid_t pid;
@@ -88,7 +88,7 @@ std::unique_ptr<jdb::process> jdb::process::launch(std::filesystem::path path, b
     return proc;
 }
 
-std::unique_ptr<jdb::process> jdb::process::attach(pid_t pid) {
+std::unique_ptr<jaydb::process> jaydb::process::attach(pid_t pid) {
     if (pid == 0) {
         error::send("Invalid PID");
     }
@@ -103,7 +103,7 @@ std::unique_ptr<jdb::process> jdb::process::attach(pid_t pid) {
     return proc;
 }
 
-jdb::process::~process() {
+jaydb::process::~process() {
     if (pid_ != 0) {
         int status;
         if (is_attached_) {
@@ -123,7 +123,7 @@ jdb::process::~process() {
 }
 
 // Wrapper for PTRACE_CONT
-void jdb::process::resume() {
+void jaydb::process::resume() {
     auto pc = get_pc();
     // Because we manually altered the child's instruction to include a call to int3, when we want
     // to continue the execution, we need to recover that data, otherwise the CPU doesn't have a
@@ -147,7 +147,7 @@ void jdb::process::resume() {
     state_ = process_state::running;
 }
 
-jdb::stop_reason jdb::process::step_instruction() {
+jaydb::stop_reason jaydb::process::step_instruction() {
     std::optional<breakpoint_site *> to_reenable;
     auto pc = get_pc();
     if (breakpoint_sites_.enabled_stoppoint_at_address(pc)) {
@@ -167,7 +167,7 @@ jdb::stop_reason jdb::process::step_instruction() {
     return reason;
 }
 
-jdb::stop_reason::stop_reason(int wait_status) {
+jaydb::stop_reason::stop_reason(int wait_status) {
     if (WIFEXITED(wait_status)) {
         reason = process_state::exited;
         info = WEXITSTATUS(wait_status);
@@ -181,7 +181,7 @@ jdb::stop_reason::stop_reason(int wait_status) {
 }
 
 // Wrapper for waitpid
-jdb::stop_reason jdb::process::wait_on_signal() {
+jaydb::stop_reason jaydb::process::wait_on_signal() {
     int wait_status;
     int options = 0;
     if (waitpid(pid_, &wait_status, options) < 0) {
@@ -197,9 +197,9 @@ jdb::stop_reason jdb::process::wait_on_signal() {
         // This fixes SIGILL (illegal sign) being passed when we execute the block of data we
         // altered in order to add a breakpoint to the child process, because disabling the
         // breakpoint restores the data from the original instruction
-        // @see jdb::breakpoint_site::enable()
-        // @see jdb::breakpoint_site::disable()
-        // @see jdb::process::resume()
+        // @see jaydb::breakpoint_site::enable()
+        // @see jaydb::breakpoint_site::disable()
+        // @see jaydb::process::resume()
         auto instr_begin = get_pc() - 1;
         if (reason.info == SIGTRAP && breakpoint_sites_.enabled_stoppoint_at_address(instr_begin)) {
             set_pc(instr_begin);
@@ -209,7 +209,7 @@ jdb::stop_reason jdb::process::wait_on_signal() {
     return reason;
 }
 
-void jdb::process::read_all_registers() {
+void jaydb::process::read_all_registers() {
     if (ptrace(PTRACE_GETREGS, pid_, nullptr, &get_registers().data_.regs) < 0) {
         error::send_errno("Could not read GPR registers");
     }
@@ -230,19 +230,19 @@ void jdb::process::read_all_registers() {
     }
 }
 
-void jdb::process::write_user_area(std::size_t offset, std::uint64_t data) {
+void jaydb::process::write_user_area(std::size_t offset, std::uint64_t data) {
     if (ptrace(PTRACE_POKEUSER, pid_, offset, data) < 0) {
         error::send_errno("Could not write to user area");
     }
 }
 
-void jdb::process::write_fprs(const user_fpregs_struct &fprs) {
+void jaydb::process::write_fprs(const user_fpregs_struct &fprs) {
     if (ptrace(PTRACE_SETFPREGS, pid_, nullptr, &fprs) < 0) {
         error::send_errno("Could not write floating point registers");
     }
 }
 
-void jdb::process::write_gprs(const user_regs_struct &gprs) {
+void jaydb::process::write_gprs(const user_regs_struct &gprs) {
     if (ptrace(PTRACE_SETREGS, pid_, nullptr, &gprs) < 0) {
         error::send_errno("Could not write general purpose registers");
     }

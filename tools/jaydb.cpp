@@ -8,13 +8,13 @@
 #include <fmt/format.h>
 #include <fmt/ranges.h>
 #include <iostream>
-#include <libjdb/breakpoint_site.hpp>
-#include <libjdb/error.hpp>
-#include <libjdb/parse.hpp>
-#include <libjdb/process.hpp>
-#include <libjdb/register_info.hpp>
-#include <libjdb/registers.hpp>
-#include <libjdb/types.hpp>
+#include <libjaydb/breakpoint_site.hpp>
+#include <libjaydb/error.hpp>
+#include <libjaydb/parse.hpp>
+#include <libjaydb/process.hpp>
+#include <libjaydb/register_info.hpp>
+#include <libjaydb/registers.hpp>
+#include <libjaydb/types.hpp>
 #include <memory>
 #include <sstream>
 #include <string>
@@ -62,7 +62,7 @@ set <address>
     }
 }
 
-void handle_breakpoint_command(jdb::process &process, const std::vector<std::string> &args) {
+void handle_breakpoint_command(jaydb::process &process, const std::vector<std::string> &args) {
     if (args.size() < 2) {
         print_help({"help", "breakpoint"});
         return;
@@ -83,7 +83,7 @@ void handle_breakpoint_command(jdb::process &process, const std::vector<std::str
 
     // Add method for setting a breakpoint,
     // command = 'set'
-    // args[2] = address. Make use of jdb::parse::to_integral
+    // args[2] = address. Make use of jaydb::parse::to_integral
 
     if (args.size() < 3) {
         print_help({"help", "breakpoint"});
@@ -91,19 +91,19 @@ void handle_breakpoint_command(jdb::process &process, const std::vector<std::str
     }
 
     if (is_prefix(args[1], "set")) {
-        auto address = jdb::to_integral<uint64_t>(args[2], 16);
+        auto address = jaydb::to_integral<uint64_t>(args[2], 16);
         if (!address) {
             fmt::print(stderr, "Breakpoint command expects address in"
                                "hexadecimal, prefixed with '0x'\n");
             return;
         }
 
-        process.create_breakpoint_site(jdb::virt_addr{*address}).enable();
+        process.create_breakpoint_site(jaydb::virt_addr{*address}).enable();
         return;
     }
 
     // Create methods for enabling, disabling and deleting a breakpoint_site, based on ID.
-    auto id = jdb::to_integral<jdb::breakpoint_site::id_type>(args[2]);
+    auto id = jaydb::to_integral<jaydb::breakpoint_site::id_type>(args[2]);
     if (!id) {
         std::cerr << "Command expects breakpoint ID\n";
         return;
@@ -118,7 +118,7 @@ void handle_breakpoint_command(jdb::process &process, const std::vector<std::str
     }
 }
 
-void handle_register_read(jdb::process &process, const std::vector<std::string> &args) {
+void handle_register_read(jaydb::process &process, const std::vector<std::string> &args) {
     auto format = [](auto t) {
         /*
          * If the register is of type double, return the value of it as is
@@ -137,8 +137,8 @@ void handle_register_read(jdb::process &process, const std::vector<std::string> 
     };
 
     if (args.size() == 2 || (args.size() == 3 && args[2] == "all")) {
-        for (auto &info : jdb::g_register_infos) {
-            auto should_print = (args.size() == 3 || info.type == jdb::register_type::gpr) &&
+        for (auto &info : jaydb::g_register_infos) {
+            auto should_print = (args.size() == 3 || info.type == jaydb::register_type::gpr) &&
                                 info.name != "orig_rax";
             if (!should_print)
                 continue;
@@ -147,10 +147,10 @@ void handle_register_read(jdb::process &process, const std::vector<std::string> 
         }
     } else if (args.size() == 3) {
         try {
-            auto info = jdb::register_info_by_name(args[2]);
+            auto info = jaydb::register_info_by_name(args[2]);
             auto value = process.get_registers().read(info);
             fmt::print("{}:\t{}\n", info.name, std::visit(format, value));
-        } catch (jdb::error &err) {
+        } catch (jaydb::error &err) {
             std::cerr << "No such register\n";
             return;
         }
@@ -158,52 +158,52 @@ void handle_register_read(jdb::process &process, const std::vector<std::string> 
         print_help({"help", "register"});
     }
 }
-jdb::registers::value parse_register_value(jdb::register_info info, std::string_view text) {
+jaydb::registers::value parse_register_value(jaydb::register_info info, std::string_view text) {
     try {
-        if (info.format == jdb::register_format::uint) {
+        if (info.format == jaydb::register_format::uint) {
             switch (info.size) {
             case 1:
-                return jdb::to_integral<std::uint8_t>(text, 16).value();
+                return jaydb::to_integral<std::uint8_t>(text, 16).value();
             case 2:
-                return jdb::to_integral<std::uint16_t>(text, 16).value();
+                return jaydb::to_integral<std::uint16_t>(text, 16).value();
             case 4:
-                return jdb::to_integral<std::uint32_t>(text, 16).value();
+                return jaydb::to_integral<std::uint32_t>(text, 16).value();
             case 8:
-                return jdb::to_integral<std::uint64_t>(text, 16).value();
+                return jaydb::to_integral<std::uint64_t>(text, 16).value();
             }
-        } else if (info.format == jdb::register_format::double_float) {
-            return jdb::to_float<double>(text).value();
+        } else if (info.format == jaydb::register_format::double_float) {
+            return jaydb::to_float<double>(text).value();
 
-        } else if (info.format == jdb::register_format::long_double) {
-            return jdb::to_float<long double>(text).value();
-        } else if (info.format == jdb::register_format::vector) {
+        } else if (info.format == jaydb::register_format::long_double) {
+            return jaydb::to_float<long double>(text).value();
+        } else if (info.format == jaydb::register_format::vector) {
             if (info.size == 8) {
-                return jdb::parse_vector<8>(text);
+                return jaydb::parse_vector<8>(text);
             } else if (info.size == 16) {
-                return jdb::parse_vector<16>(text);
+                return jaydb::parse_vector<16>(text);
             }
         }
     } catch (...) {
     }
-    jdb::error::send("Invalid format");
+    jaydb::error::send("Invalid format");
 }
 
-void handle_register_write(jdb::process &process, const std::vector<std::string> &args) {
+void handle_register_write(jaydb::process &process, const std::vector<std::string> &args) {
     if (args.size() != 4) {
         print_help({"help", "register"});
         return;
     }
     try {
-        auto info = jdb::register_info_by_name(args[2]);
+        auto info = jaydb::register_info_by_name(args[2]);
         auto value = parse_register_value(info, args[3]);
         process.get_registers().write(info, value);
-    } catch (jdb::error &err) {
+    } catch (jaydb::error &err) {
         std::cerr << err.what() << '\n';
         return;
     }
 }
 
-void handle_register_command(jdb::process &process, const std::vector<std::string> &args) {
+void handle_register_command(jaydb::process &process, const std::vector<std::string> &args) {
     if (args.size() < 2) {
         print_help({"help", "register"});
         return;
@@ -217,16 +217,16 @@ void handle_register_command(jdb::process &process, const std::vector<std::strin
     }
 }
 
-std::unique_ptr<jdb::process> attach(int argc, const char **argv) {
+std::unique_ptr<jaydb::process> attach(int argc, const char **argv) {
     pid_t pid = 0;
     // Passing a PID
     if (argc == 3 && argv[1] == std::string_view("-p")) {
         // In this branch, the program will attach to a running process
         pid = std::atoi(argv[2]);
-        return jdb::process::attach(pid);
+        return jaydb::process::attach(pid);
     } else {
         const char *program_path = argv[1];
-        auto proc = jdb::process::launch(program_path);
+        auto proc = jaydb::process::launch(program_path);
         fmt::print("Launched process with PID {}\n", proc->pid());
         return proc;
     }
@@ -242,16 +242,16 @@ std::vector<std::string> split(std::string_view str, char delimiter) {
     return out;
 }
 
-void print_stop_reason(const jdb::process &process, jdb::stop_reason reason) {
+void print_stop_reason(const jaydb::process &process, jaydb::stop_reason reason) {
     std::string message;
     switch (reason.reason) {
-    case jdb::process_state::exited:
+    case jaydb::process_state::exited:
         message = fmt::format("exited with status {}", static_cast<int>(reason.info));
         break;
-    case jdb::process_state::terminated:
+    case jaydb::process_state::terminated:
         message = fmt::format("terminated with signal {}", sigabbrev_np(reason.info));
         break;
-    case jdb::process_state::stopped:
+    case jaydb::process_state::stopped:
         message = fmt::format("stopped with signal {} at {:#x}", sigabbrev_np(reason.info),
                               process.get_pc().addr());
         break;
@@ -259,7 +259,7 @@ void print_stop_reason(const jdb::process &process, jdb::stop_reason reason) {
     fmt::print("Process {} {}\n", process.pid(), message);
 }
 
-void handle_command(std::unique_ptr<jdb::process> &process, std::string_view line) {
+void handle_command(std::unique_ptr<jaydb::process> &process, std::string_view line) {
     auto args = split(line, ' ');
     auto command = args[0];
     if (is_prefix(command, "continue")) {
@@ -282,11 +282,11 @@ void handle_command(std::unique_ptr<jdb::process> &process, std::string_view lin
 
 } // namespace
 
-void main_loop(std::unique_ptr<jdb::process> &process) {
+void main_loop(std::unique_ptr<jaydb::process> &process) {
     char *line = nullptr;
     // readline creates a prompt and returns a char* with whatever the user wrote.
     // If it reads an EOF, it returns nullptr
-    while ((line = readline("jdb> ")) != nullptr) {
+    while ((line = readline("jaydb> ")) != nullptr) {
         std::string line_str;
 
         // If the user doesn't write anything in the readline prompt, read the last command from the
@@ -318,7 +318,7 @@ int main(int argc, const char **argv) {
     try {
         auto process = attach(argc, argv);
         main_loop(process);
-    } catch (const jdb::error &err) {
+    } catch (const jaydb::error &err) {
         std::cout << err.what() << '\n';
     }
 }

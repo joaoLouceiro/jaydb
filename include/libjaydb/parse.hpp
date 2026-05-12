@@ -1,7 +1,7 @@
-#ifndef JDB_PARSE_HPP
-#define JDB_PARSE_HPP
+#ifndef JAYDB_PARSE_HPP
+#define JAYDB_PARSE_HPP
 
-#include "libjdb/error.hpp"
+#include "libjaydb/error.hpp"
 #include <array>
 #include <charconv>
 #include <cstddef>
@@ -9,7 +9,7 @@
 #include <optional>
 #include <string_view>
 
-namespace jdb {
+namespace jaydb {
 template <class I> std::optional<I> to_integral(std::string_view sv, int base = 10) {
     auto begin = sv.begin();
     if (base == 16 && sv.size() > 1 && begin[0] == '0' && begin[1] == 'x') {
@@ -43,7 +43,7 @@ template <class F> std::optional<F> to_float(std::string_view sv) {
 }
 
 template <std::size_t N> auto parse_vector(std::string_view text) {
-    auto invalid = [] { jdb::error::send("Invalid format"); };
+    auto invalid = [] { jaydb::error::send("Invalid format"); };
 
     std::array<std::byte, N> bytes;
     const char *c = text.data();
@@ -68,5 +68,5 @@ template <std::size_t N> auto parse_vector(std::string_view text) {
 
     return bytes;
 }
-} // namespace jdb
-#endif // !JDB_PARSE_HPP
+} // namespace jaydb
+#endif // !JAYDB_PARSE_HPP
