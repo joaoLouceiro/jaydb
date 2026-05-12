@@ -1,10 +1,10 @@
-#ifndef JDB_ERROR_HPP
-#define JDB_ERROR_HPP
+#ifndef JAYDB_ERROR_HPP
+#define JAYDB_ERROR_HPP
 
 #include <cstring>
 #include <stdexcept>
 
-namespace jdb {
+namespace jaydb {
 class error : public std::runtime_error {
   public:
     [[noreturn]]
@@ -19,6 +19,6 @@ class error : public std::runtime_error {
   private:
     error(const std::string &what) : std::runtime_error(what) {}
 };
-} // namespace jdb
+} // namespace jaydb
 
-#endif // !JDB_ERROR_HPP
+#endif // !JAYDB_ERROR_HPP

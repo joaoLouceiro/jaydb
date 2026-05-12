@@ -1,19 +1,19 @@
-#ifndef JDB_PROCESS_HPP
-#define JDB_PROCESS_HPP
+#ifndef JAYDB_PROCESS_HPP
+#define JAYDB_PROCESS_HPP
 
 #include <cstdint>
 #include <filesystem>
-#include <libjdb/breakpoint_site.hpp>
-#include <libjdb/register_info.hpp>
-#include <libjdb/registers.hpp>
-#include <libjdb/stoppoint_collection.hpp>
-#include <libjdb/types.hpp>
+#include <libjaydb/breakpoint_site.hpp>
+#include <libjaydb/register_info.hpp>
+#include <libjaydb/registers.hpp>
+#include <libjaydb/stoppoint_collection.hpp>
+#include <libjaydb/types.hpp>
 #include <memory>
 #include <optional>
 #include <sys/types.h>
 #include <sys/user.h>
 
-namespace jdb {
+namespace jaydb {
 
 enum class process_state { stopped, running, exited, terminated };
 
@@ -61,7 +61,7 @@ class process {
         get_registers().write_by_id(register_id::rip, address.addr());
     }
 
-    jdb::stop_reason step_instruction();
+    jaydb::stop_reason step_instruction();
 
     breakpoint_site &create_breakpoint_site(virt_addr address);
 
@@ -87,6 +87,6 @@ class process {
     stoppoint_collection<breakpoint_site> breakpoint_sites_;
 };
 
-} // namespace jdb
+} // namespace jaydb
 
-#endif // !JDB
+#endif // !JAYDB

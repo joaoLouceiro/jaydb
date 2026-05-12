@@ -13,7 +13,7 @@ endfunction()
 
 add_test_cpp_target(run_endlessly run_endlessly.cpp)
 add_test_cpp_target(end_immediately end_immediately.cpp)
-add_test_cpp_target(hello_jdb hello_jdb.cpp)
+add_test_cpp_target(hello_jaydb hello_jaydb.cpp)
 
 add_test_asm_target(reg_write reg_write.s)
 add_test_asm_target(reg_read reg_read.s)

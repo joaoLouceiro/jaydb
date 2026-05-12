@@ -1,14 +1,14 @@
-#ifndef JDB_STOPPOINT_COLLECTION_HPP
-#define JDB_STOPPOINT_COLLECTION_HPP
+#ifndef JAYDB_STOPPOINT_COLLECTION_HPP
+#define JAYDB_STOPPOINT_COLLECTION_HPP
 
 #include <algorithm>
 #include <cstddef>
-#include <libjdb/error.hpp>
-#include <libjdb/types.hpp>
+#include <libjaydb/error.hpp>
+#include <libjaydb/types.hpp>
 #include <memory>
 #include <vector>
 
-namespace jdb {
+namespace jaydb {
 template <class Stoppoint> class stoppoint_collection {
   public:
     Stoppoint &push(std::unique_ptr<Stoppoint> bs);
@@ -146,5 +146,5 @@ void stoppoint_collection<Stoppoint>::for_each(F f) const {
         f(*point);
     }
 }
-} // namespace jdb
-#endif // !JDB_STOPPOINT_COLLECTION_HPP
+} // namespace jaydb
+#endif // !JAYDB_STOPPOINT_COLLECTION_HPP

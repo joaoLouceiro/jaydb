@@ -1,12 +1,12 @@
-add_executable(jdb jdb.cpp)
+add_executable(jaydb jaydb.cpp)
 target_link_libraries(
-    jdb PRIVATE jdb::libjdb
+    jaydb PRIVATE jaydb::libjaydb
     PkgConfig::libedit
     fmt::fmt
 )
 
 include(GNUInstallDirs)
 install(
-    TARGETS jdb
+    TARGETS jaydb
     RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR}
 )
