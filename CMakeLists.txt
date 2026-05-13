@@ -2,6 +2,7 @@
 cmake_minimum_required(VERSION 3.19)
 
 set(CMAKE_TOOLCHAIN_FILE "/opt/vcpkg/scripts/buildsystems/vcpkg.cmake" CACHE STRING "" FORCE)
+set(CMAKE_EXPORT_COMPILE_COMMANDS 1) 
 
 # Naming the project and enabling C++ support
 project("jaydb" LANGUAGES CXX ASM)
